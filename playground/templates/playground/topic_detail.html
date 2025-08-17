@@ -1,0 +1,27 @@
+{% extends "playground/base.html" %}
+
+{% block content %}
+<h1 class="question-title">{{ topic.title }}</h1>
+
+<div class="question-list">
+    {% for question in questions %}
+        <div class="question-card">
+            <a href="{% url 'playground:question_detail' topic.slug question.slug %}">
+                {{ question.title }}
+            </a>
+            <div class="question-meta">
+                {% if question.is_completed %}
+                    <span class="status-completed">✅ Completed</span>
+                {% else %}
+                    <span class="status-pending">❌ Pending</span>
+                {% endif %}
+                <span class="difficulty">({{ question.difficulty }})</span>
+            </div>
+        </div>
+    {% empty %}
+        <p>No active questions for this topic.</p>
+    {% endfor %}
+</div>
+
+<a class="back-link" href="{% url 'playground:home' %}">← Back to Topics</a>
+{% endblock %}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QueryPrep</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'playground/style.css' %}">
+    <link rel="icon" type="image/png" href="{% static 'playground/images/qp_image.png' %}">
+</head>
+<body>
+    <header class="header card" style="display:flex; align-items:center; justify-content:space-between; padding:10px;">
+        <div class="header-left" style="display:flex; align-items:center; gap:10px;">
+            <a href="{% url 'playground:home' %}">
+                <img src="{% static 'playground/images/qp_image.png' %}" 
+                     alt="QueryPrep Logo" 
+                     style="height:40px; width:40px; border-radius:50%; object-fit:cover; border:0.5px solid white; box-shadow:0 0 5px rgba(0,0,0,0.2);">
+            </a>
+            <h1 style="margin:0;">
+                <a href="{% url 'playground:home' %}" style="text-decoration:none; color:inherit;">QueryPrep</a>
+            </h1>
+        </div>
+    
+        <div class="header-right" style="display:flex; align-items:center; gap:15px;">
+            {% if user.is_authenticated %}
+                <span>Hi, {{ user.username }}</span>
+                <form method="post" action="{% url 'playground:logout' %}" class="logout-form">
+                    {% csrf_token %}
+                    <button type="submit">Logout</button>
+                </form>
+            {% endif %}
+        </div>
+    </header>      
+
+    <main class="container">
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <footer class="footer">
+        &copy;
+        <a href="https://www.linkedin.com/in/prinjal-boruah/" target="_blank">
+            Prinjal Boruah - linkedin
+        </a>
+    </footer>
+</body>
+</html>

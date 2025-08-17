@@ -1,0 +1,12 @@
+{% extends "playground/base.html" %}
+{% block content %}
+<h1 class="question-title">Practice Topics</h1>
+
+{% for topic in topics %}
+    <div class="topic-card">
+        <a href="{% url 'playground:topic_detail' topic.slug %}">{{ topic.title }}</a>
+    </div>
+{% empty %}
+    <p>No topics found.</p>
+{% endfor %}
+{% endblock %}

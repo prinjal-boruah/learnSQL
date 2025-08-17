@@ -1,0 +1,28 @@
+{% extends "playground/base.html" %}
+
+{% block content %}
+<div class="login-wrapper">
+    <h2>Login</h2>
+
+    <form method="post" class="login-form">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>Username:</label>
+            <input type="text" name="username" required>
+        </div>
+        <br>
+        <div class="form-group">
+            <label>Password:</label>
+            <input type="password" name="password" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+
+    {% if form.errors %}
+        <p class="error-msg">Invalid username or password</p>
+    {% endif %}
+    <p style="margin-top: 15px;">
+        Don't have an account? <a href="{% url 'playground:register' %}">Register here</a>
+    </p>
+</div>
+{% endblock %}

@@ -1,0 +1,261 @@
+{% extends "playground/base.html" %}
+{% load static %}
+{% block content %}
+<h1 class="question-title">Q. {{ question.title }}</h1>
+
+<div class="grid">
+  <!-- LEFT PANEL: Question Info -->
+  <div class="card">
+    <label for="question-select">Select Question in Topic:</label>
+    <select id="question-select">
+      {% for q in all_topic_questions %}
+        <option value="{% url 'playground:question_detail' q.topic.slug q.slug %}"
+          {% if q.id == question.id %}selected{% endif %}>
+          {{ q.title }}
+        </option>
+      {% endfor %}
+    </select>
+
+    <div class="meta">
+      <span class="pill" id="topic-pill">Topic: {{ topic.title }}</span>
+      <span class="pill" id="difficulty-pill">Difficulty: {{ question.difficulty }}</span>
+    </div>
+
+    <div class="divider"></div>
+
+    <div>
+      <div class="muted" style="font-size:12px;">Title</div>
+      <div id="q-title" style="font-weight:700; margin-bottom:6px;">{{ question.title }}</div>
+
+      <div class="muted" style="font-size:12px;">Description</div>
+      <div id="q-desc" class="desc">{{question.prompt_md}}</div>
+
+    </div>
+  </div>
+
+  <div class="card">
+
+    <div style="margin-top:8px;">
+      <textarea id="sql-editor" placeholder="Write SQL here..."></textarea>
+    </div>
+
+    <div class="row">
+        <div class="row " style="margin-top: 4rem;">
+          <button class="btn primary" id="run-btn">▶ Run Query</button>
+          <button class="btn danger" id="check-btn">✅ Check Answer</button>
+          <button class="btn info" id="info-btn" onclick="confirm_to_show()">🤒 Show Answer</button>
+        </div>
+    </div>
+  </div>
+</div>
+<div id="check-results" class="card" style="margin-top:15px;"></div>
+<a class="back-link" href="{% url 'playground:topic_detail' topic.slug %}">← Back to Topic Questions</a>
+<form style="display:none;">{% csrf_token %}</form>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const runBtn = document.getElementById("run-btn");
+    const checkBtn = document.getElementById("check-btn");
+    const infoBtn = document.getElementById("info-btn");
+    const editor = document.getElementById("sql-editor");
+    const resultsDiv = document.getElementById("check-results");
+
+    const questionId = {{ question.id }};
+    const runUrl = "{% url 'playground:run_sql' %}";
+    const checkUrl = "{% url 'playground:check_answer' %}";
+    const showUrl = "{% url 'playground:show_answer' %}";
+
+    editor.addEventListener('keydown', function(event) {
+        if (event.ctrlKey && event.key === 'Enter') {
+            event.preventDefault();
+            checkBtn.click();
+        }
+    });
+
+    // Helper: get CSRF token from cookie
+    function getCSRFToken() {
+        let cookieValue = null;
+        const name = "csrftoken";
+        if (document.cookie && document.cookie !== "") {
+            const cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + "=")) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Render query results as a table
+    function renderTable(columns, rows) {
+        if (!rows.length) return "<p>No rows returned.</p>";
+
+        let html = "<table border='1' style='border-collapse: collapse; width: 100%;'>";
+        html += "<thead><tr>";
+        columns.forEach(col => html += `<th style="padding:4px; text-align:left;">${col}</th>`);
+        html += "</tr></thead><tbody>";
+        rows.forEach(row => {
+            html += "<tr>";
+            row.forEach(cell => html += `<td style="padding:4px;">${cell}</td>`);
+            html += "</tr>";
+        });
+        html += "</tbody></table>";
+        return html;
+    }
+
+    // Run SQL button
+    runBtn.addEventListener("click", function() {
+        const sql = editor.value.trim();
+        if (!sql) {
+            resultsDiv.innerHTML = "<p style='color:red;'>Please enter SQL.</p>";
+            return;
+        }
+
+        fetch(runUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({
+                sql: sql,
+                topic_slug: "{{ question.topic.slug }}"
+            })
+        })
+        .then(res => {
+            if (!res.ok || res.headers.get("content-type").includes("text/html")) {
+                window.location.href = "/accounts/login/?next=" + window.location.pathname;
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.ok) {
+                resultsDiv.innerHTML = renderTable(data.columns, data.rows);
+            } else {
+                resultsDiv.innerHTML = `<p style='color:red;'>${data.error}</p>`;
+            }
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<p style='color:red;'>Fetch error: ${err}</p>`;
+        });
+    });
+
+    // Check Answer button
+    checkBtn.addEventListener("click", function() {
+        const sql = editor.value.trim();
+        if (!sql) {
+            resultsDiv.innerHTML = "<p style='color:red;'>Please enter SQL.</p>";
+            return;
+        }
+
+        fetch(checkUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({
+                question_id: questionId,
+                sql: sql
+            })
+        })
+        .then(res => {
+            if (!res.ok || res.headers.get("content-type").includes("text/html")) {
+                window.location.href = "/accounts/login/?next=" + window.location.pathname;
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.ok) {
+                resultsDiv.innerHTML = `<p style="color:green; font-weight:bold;">✅ Correct! 🎉</p>`;
+            } else {
+                resultsDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
+            }
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<p style='color:red;'>Fetch error: ${err}</p>`;
+        });
+    });
+
+    // Show Answer button
+    infoBtn.addEventListener("click", function() {
+
+        fetch(showUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-CSRFToken": getCSRFToken()
+            },
+            body: JSON.stringify({
+                question_id: questionId
+            })
+        })
+        .then(res => {
+            if (!res.ok || res.headers.get("content-type").includes("text/html")) {
+                window.location.href = "/accounts/login/?next=" + window.location.pathname;
+                return;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (!data) return;
+            if (data.ok) {
+                resultsDiv.innerHTML = `<p style="color:green; font-weight:bold;">${data.solutions}</p>`;
+            } else {
+                resultsDiv.innerHTML = `<p style="color:red;">${data.error}</p>`;
+            }
+        })
+        .catch(err => {
+            resultsDiv.innerHTML = `<p style='color:red;'>Fetch error: ${err}</p>`;
+        });
+    });
+});
+
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const select = document.getElementById('question-select');
+    select.addEventListener('change', function () {
+        const url = this.value;
+        if (url) {
+            window.location.href = url;
+        }
+    });
+});
+
+function confirm_to_show() {
+  confirm("Are you sure?");
+}
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const select = document.getElementById('question-select');
+        if (select) {
+            select.style.padding = '10px';
+            select.style.fontSize = '14px';
+        }
+        const resultsDiv = document.getElementById('check-results');
+        function scrollToResults() {
+            if (resultsDiv) {
+                resultsDiv.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+        const runBtn = document.getElementById('run-btn');
+        const checkBtn = document.getElementById('check-btn');
+        const infoBtn = document.getElementById('info-btn');
+        [runBtn, checkBtn, infoBtn].forEach(btn => {
+            if (btn) {
+                btn.addEventListener('click', scrollToResults);
+            }
+        });
+    });
+</script>
+
+{% endblock %}
